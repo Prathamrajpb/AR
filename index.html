@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>View in AR</title>
+<style>
+  button{padding:1rem 1.25rem;border:0;border-radius:10px;font-size:1rem;font-weight:600}
+</style>
+</head>
+<body>
+
+<button id="view-ar">View in AR</button>
+
+<script>
+  // 🔁 1) SET YOUR FILE URLS
+  const USDZ_URL = 'https://YOUR_DOMAIN.com/Cupra_Terramar_AR/Cupra_Terramar_Hero_Purple_GLB.usdz';
+  const GLB_URL  = 'https://YOUR_DOMAIN.com/Cupra_Terramar_AR/cupra_terramar_hero_purple_glb.glb';
+
+  // 🔎 2) SIMPLE PLATFORM CHECKS
+  const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent)) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  // ▶️ 3) ONE BUTTON TO LAUNCH AR
+  document.getElementById('view-ar').addEventListener('click', () => {
+    if (isIOS) {
+      // iOS: launch AR Quick Look with USDZ
+      const a = document.createElement('a');
+      a.rel = 'ar';
+      a.href = USDZ_URL;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (isAndroid) {
+      // Android: launch Google Scene Viewer with GLB
+      const intent = intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(GLB_URL)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(location.href)};end;;
+      location.href = intent;
+    } else {
+      alert('Open this page on an iPhone or Android device to view in AR.');
+    }
+  });
+</script>
+
+</body>
+</html>
