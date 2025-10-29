@@ -53,7 +53,7 @@
   </model-viewer>
 
   <div class="hud">
-    🖱️ Click = Play animation and Reset Position
+    🖱️ Left Click = Play animation and Reset Position
   </div>
   <div class="hud right" id="status">Loading… 0%</div>
 
@@ -78,9 +78,8 @@
       console.log('Available animations:', mv.availableAnimations);
 
       // Save initial position and rotation of the model
-      const scene = mv.getScene();
-      initialPosition = scene.position.clone();
-      initialRotation = scene.rotation.clone();
+      initialPosition = mv.position.clone();
+      initialRotation = mv.rotation.clone();
     });
 
     // tiny helper for tweens
@@ -99,17 +98,16 @@
     mv.addEventListener('click', async () => {
       if (isAnimationPlaying) {
         // If animation is playing, reset the model to the initial position
-        const scene = await mv.getScene();
         tween(600, (u) => {
-          scene.position.lerp(initialPosition, u);
-          scene.rotation.set(
-            THREE.MathUtils.lerp(initialRotation.x, scene.rotation.x, u),
-            THREE.MathUtils.lerp(initialRotation.y, scene.rotation.y, u),
-            THREE.MathUtils.lerp(initialRotation.z, scene.rotation.z, u)
+          mv.position.lerp(initialPosition, u);
+          mv.rotation.set(
+            THREE.MathUtils.lerp(initialRotation.x, mv.rotation.x, u),
+            THREE.MathUtils.lerp(initialRotation.y, mv.rotation.y, u),
+            THREE.MathUtils.lerp(initialRotation.z, mv.rotation.z, u)
           );
         }, () => {
-          scene.position.copy(initialPosition);
-          scene.rotation.copy(initialRotation);
+          mv.position.copy(initialPosition);
+          mv.rotation.copy(initialRotation);
         });
         isAnimationPlaying = false; // Reset the state
       } else {
