@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hornet — Bone Control (Three.js)</title>
+<style>
+  html,body{margin:0;height:100%;background:#181a1b;overflow:hidden}
+  #hud{position:fixed;left:12px;bottom:12px;color:#fff;background:rgba(0,0,0,.6);
+       border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 12px;
+       font:14px system-ui,sans-serif;pointer-events:none}
+  #status{position:fixed;right:12px;bottom:12px;color:#fff;background:rgba(0,0,0,.6);
+       border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 12px;
+       font:14px system-ui,sans-serif;pointer-events:none}
+  canvas{display:block}
+</style>
+</head>
+<body>
+<div id="hud">🖱️ Click = Play clip • 🖱️ Double-Click = Head tilt • 🖱️ Right-Click = Sword back</div>
+<div id="status">Loading…</div>
+
+<script type="module">
+/* --- IMPORTANT: use full URLs, no bare imports --- */
+import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+
+const status = document.getElementById('status');
+
+/* --- scene/renderer/camera --- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x181a1b);
+
+const cam = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+cam.position.set(1.2, 1.0, 2.0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(cam, renderer.domElement);
+controls.enableDamping = true;
+
+/* --- lights + simple ground --- */
+scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.0));
+const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+dir.position.set(3,5,2);
+scene.add(dir);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(10,10),
+  new THREE.MeshStandardMaterial({color:0x0f1112, roughness:1})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+/* --- resize --- */
+addEventListener('resize', ()=>{
+  cam.aspect = innerWidth/innerHeight;
+  cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* --- tween helper --- */
+function tween(ms, update, done){
+  const t0 = performance.now();
+  function frame(t){
+    const u = Math.min(1, (t - t0)/ms);
+    update(u);
+    if (u < 1) requestAnimationFrame(frame); else done && done();
+  }
+  requestAnimationFrame(frame);
+}
+
+/* --- load GLB (same folder) --- */
+const loader = new GLTFLoader();
+let root=null, mixer=null, clips=[];
+let headNode=null, swordNode=null;
+
+const HEAD_CANDIDATES  = ['Head','head','mixamorig:Head','DEF-Head','Bip001_Head'];
+const SWORD_CANDIDATES = ['NEEDLE','Needle','needle','Sword','sword','Weapon','weapon'];
+
+function findNodeByCandidates(root, names){
+  // try skeleton bones first
+  let skinned=null;
+  root.traverse(o=>{ if(o.isSkinnedMesh && !skinned) skinned=o; });
+  if (skinned && skinned.skeleton){
+    for (const n of names){
+      const b = skinned.skeleton.getBoneByName(n);
+      if (b) return b;
+    }
+  }
+  // fallback: any object by name
+  for (const n of names){
+    const o = root.getObjectByName(n);
+    if (o) return o;
+  }
+  return null;
+}
+
+loader.load(
+  'hornet.glb',
+  (gltf)=>{
+    status.textContent = 'Framing…';
+    root = gltf.scene;
+    root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }});
+    scene.add(root);
+
+    // center & place on ground
+    const box = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const center = new THREE.Vector3(); box.getCenter(center);
+    root.position.sub(center);
+    root.position.y = size.y*0.5;
+
+    clips = gltf.animations || [];
+    if (clips.length){
+      mixer = new THREE.AnimationMixer(root);
+      console.log('Animations:', clips.map(c=>c.name));
+    } else {
+      console.log('No clips in file.');
+    }
+
+    headNode  = findNodeByCandidates(root, HEAD_CANDIDATES);
+    swordNode = findNodeByCandidates(root, SWORD_CANDIDATES);
+
+    console.log('Head node:', headNode?.name || '(not found)');
+    console.log('Sword/needle node:', swordNode?.name || '(not found)');
+
+    // print all node names to help you refine the candidates
+    const names = [];
+    root.traverse(n => names.push(n.name));
+    console.log('All node names:', names);
+
+    status.textContent = 'Ready';
+    setTimeout(()=>status.remove(), 1200);
+  },
+  (xhr)=>{
+    const p = xhr.total ? Math.round(xhr.loaded/xhr.total*100) : 0;
+    status.textContent = `Loading… ${p}%`;
+  },
+  (err)=>{
+    console.error('GLB load error:', err);
+    status.textContent = 'Load error (open console)';
+  }
+);
+
+/* --- render loop --- */
+const clock = new THREE.Clock();
+function tick(){
+  const dt = clock.getDelta();
+  if (mixer) mixer.update(dt);
+  controls.update();
+  renderer.render(scene, cam);
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* --- interactions --- */
+// click → play built-in clip briefly
+renderer.domElement.addEventListener('click', ()=>{
+  if (!mixer || !clips.length) return;
+  let clip = clips.find(c=>/HORNET/i.test(c.name)) || clips[0];
+  const action = mixer.clipAction(clip);
+  action.reset().play();
+  setTimeout(()=> action.stop(), 2000);
+});
+
+// double-click → head tilt (bone only)
+renderer.domElement.addEventListener('dblclick', ()=>{
+  if (!headNode) { console.warn('Head bone not found — check console names.'); return; }
+  const baseX = headNode.rotation.x;
+  tween(700, (u)=>{
+    const ease = 1 - Math.pow(1-u, 3);
+    headNode.rotation.x = baseX - Math.sin(ease*Math.PI)*0.45; // ~26°
+  }, ()=> headNode.rotation.x = baseX);
+});
+
+// right-click → sword/needle back (prevent context menu)
+renderer.domElement.addEventListener('contextmenu', (e)=>{
+  e.preventDefault();
+  if (!swordNode) { console.warn('Sword/needle node not found — check console names.'); return; }
+  const baseX = swordNode.rotation.x;
+  tween(600, (u)=>{
+    const upDown = u<0.5 ? (u*2) : (1-(u-0.5)*2); // up then down
+    swordNode.rotation.x = baseX - upDown * 0.5;   // ~28.6°
+  }, ()=> swordNode.rotation.x = baseX);
+});
+</script>
+</body>
+</html>
