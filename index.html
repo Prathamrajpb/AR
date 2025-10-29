@@ -53,7 +53,7 @@
   </model-viewer>
 
   <div class="hud">
-    🖱️ Click = Attack • 🖱️ Double Click = Power stance • 🖱️ Right Click = Spin
+    🖱️ Left Click = Play animation • 🖱️ Double Click or Right Click = Reset Position
   </div>
   <div class="hud right" id="status">Loading… 0%</div>
 
@@ -61,6 +61,9 @@
     const mv = document.getElementById('mv');
     const statusEl = document.getElementById('status');
     const ANIM_NAME = 'HORNET RIGAction';
+
+    let initialPosition = null;
+    let initialRotation = null;
 
     // progress HUD
     mv.addEventListener('progress', (e) => {
@@ -72,6 +75,11 @@
     mv.addEventListener('load', () => {
       console.log('✅ Model loaded!');
       console.log('Available animations:', mv.availableAnimations);
+
+      // Save initial position and rotation of the model
+      const scene = mv.getScene();
+      initialPosition = scene.position.clone();
+      initialRotation = scene.rotation.clone();
     });
 
     // tiny helper for tweens
@@ -86,7 +94,7 @@
       requestAnimationFrame(frame);
     }
 
-    // LEFT CLICK → normal animation
+    // LEFT CLICK → Play animation
     mv.addEventListener('click', async () => {
       await mv.updateComplete;
       if (mv.availableAnimations?.includes(ANIM_NAME)) {
@@ -103,30 +111,29 @@
       }
     });
 
-    // DOUBLE CLICK → “Power stance”
-    mv.addEventListener('dblclick', async () => {
-      const scene = await mv.getScene();
-      const head = scene.getNodeByName('Head') || scene;
-      const baseX = head.rotation.x;
-      const baseY = head.rotation.y;
-      tween(700, (u) => {
-        head.rotation.x = baseX - Math.sin(u * Math.PI) * 0.35; // tilt forward
-        head.rotation.y = baseY + Math.sin(u * Math.PI * 2) * 0.15;
+    // DOUBLE CLICK or RIGHT CLICK → Reset Position
+    function resetPosition() {
+      const scene = mv.getScene();
+      tween(600, (u) => {
+        scene.position.lerp(initialPosition, u);
+        scene.rotation.set(
+          THREE.MathUtils.lerp(initialRotation.x, scene.rotation.x, u),
+          THREE.MathUtils.lerp(initialRotation.y, scene.rotation.y, u),
+          THREE.MathUtils.lerp(initialRotation.z, scene.rotation.z, u)
+        );
       }, () => {
-        head.rotation.x = baseX;
-        head.rotation.y = baseY;
+        scene.position.copy(initialPosition);
+        scene.rotation.copy(initialRotation);
       });
-    });
+    }
 
-    // RIGHT CLICK → “Taunt spin”
-    mv.addEventListener('contextmenu', async (e) => {
-      e.preventDefault(); // stop default context menu
-      const scene = await mv.getScene();
-      const root = scene;
-      const baseY = root.rotation.y;
-      tween(1000, (u) => {
-        root.rotation.y = baseY + u * Math.PI * 2; // full 360° spin
-      }, () => root.rotation.y = baseY);
+    // DOUBLE CLICK → Reset Position
+    mv.addEventListener('dblclick', resetPosition);
+
+    // RIGHT CLICK → Reset Position (stop default context menu)
+    mv.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      resetPosition();
     });
 
     // error display
