@@ -53,7 +53,7 @@
   </model-viewer>
 
   <div class="hud">
-    🖱️ Left Click = Play animation • 🖱️ Double Click or Right Click = Reset Position
+    🖱️ Click = Play animation and Reset Position
   </div>
   <div class="hud right" id="status">Loading… 0%</div>
 
@@ -64,6 +64,7 @@
 
     let initialPosition = null;
     let initialRotation = null;
+    let isAnimationPlaying = false;
 
     // progress HUD
     mv.addEventListener('progress', (e) => {
@@ -83,9 +84,9 @@
     });
 
     // tiny helper for tweens
-    function tween(duration, update, done){
+    function tween(duration, update, done) {
       const t0 = performance.now();
-      function frame(t){
+      function frame(t) {
         const u = Math.min(1, (t - t0) / duration);
         update(u);
         if (u < 1) requestAnimationFrame(frame);
@@ -94,46 +95,45 @@
       requestAnimationFrame(frame);
     }
 
-    // LEFT CLICK → Play animation
+    // LEFT CLICK → Play animation / Reset to initial position
     mv.addEventListener('click', async () => {
-      await mv.updateComplete;
-      if (mv.availableAnimations?.includes(ANIM_NAME)) {
-        mv.animationName = ANIM_NAME;
-        mv.play();
-        setTimeout(() => mv.pause(), 2000);
-      } else {
+      if (isAnimationPlaying) {
+        // If animation is playing, reset the model to the initial position
         const scene = await mv.getScene();
-        const head = scene.getNodeByName('Head') || scene;
-        const base = head.rotation.y;
         tween(600, (u) => {
-          head.rotation.y = base + Math.sin(u * Math.PI * 4) * 0.3 * (1 - u * 0.3);
-        }, () => head.rotation.y = base);
+          scene.position.lerp(initialPosition, u);
+          scene.rotation.set(
+            THREE.MathUtils.lerp(initialRotation.x, scene.rotation.x, u),
+            THREE.MathUtils.lerp(initialRotation.y, scene.rotation.y, u),
+            THREE.MathUtils.lerp(initialRotation.z, scene.rotation.z, u)
+          );
+        }, () => {
+          scene.position.copy(initialPosition);
+          scene.rotation.copy(initialRotation);
+        });
+        isAnimationPlaying = false; // Reset the state
+      } else {
+        // If animation is not playing, play it
+        await mv.updateComplete;
+        if (mv.availableAnimations?.includes(ANIM_NAME)) {
+          mv.animationName = ANIM_NAME;
+          mv.play();
+          setTimeout(() => {
+            mv.pause();
+            isAnimationPlaying = false; // Reset animation state after play
+          }, 2000);
+          isAnimationPlaying = true; // Set the state to indicate the animation is playing
+        } else {
+          // If no animation found, perform a basic head shake as fallback
+          const scene = await mv.getScene();
+          const head = scene.getNodeByName('Head') || scene;
+          const base = head.rotation.y;
+          tween(600, (u) => {
+            head.rotation.y = base + Math.sin(u * Math.PI * 4) * 0.3 * (1 - u * 0.3);
+          }, () => head.rotation.y = base);
+          isAnimationPlaying = true; // Mark that something has happened
+        }
       }
-    });
-
-    // DOUBLE CLICK or RIGHT CLICK → Reset Position
-    function resetPosition() {
-      const scene = mv.getScene();
-      tween(600, (u) => {
-        scene.position.lerp(initialPosition, u);
-        scene.rotation.set(
-          THREE.MathUtils.lerp(initialRotation.x, scene.rotation.x, u),
-          THREE.MathUtils.lerp(initialRotation.y, scene.rotation.y, u),
-          THREE.MathUtils.lerp(initialRotation.z, scene.rotation.z, u)
-        );
-      }, () => {
-        scene.position.copy(initialPosition);
-        scene.rotation.copy(initialRotation);
-      });
-    }
-
-    // DOUBLE CLICK → Reset Position
-    mv.addEventListener('dblclick', resetPosition);
-
-    // RIGHT CLICK → Reset Position (stop default context menu)
-    mv.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      resetPosition();
     });
 
     // error display
