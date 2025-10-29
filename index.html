@@ -62,8 +62,7 @@
     const statusEl = document.getElementById('status');
     const ANIM_NAME = 'HORNET RIGAction';
 
-    let initialPosition = null;
-    let initialRotation = null;
+    let initialTransform = null;
     let isAnimationPlaying = false;
 
     // progress HUD
@@ -77,9 +76,12 @@
       console.log('✅ Model loaded!');
       console.log('Available animations:', mv.availableAnimations);
 
-      // Save initial position and rotation of the model
-      initialPosition = mv.position.clone();
-      initialRotation = mv.rotation.clone();
+      // Save initial position, rotation, and scale of the model
+      initialTransform = {
+        position: mv.position.clone(),
+        rotation: mv.rotation.clone(),
+        scale: mv.scale.clone()
+      };
     });
 
     // tiny helper for tweens
@@ -99,15 +101,17 @@
       if (isAnimationPlaying) {
         // If animation is playing, reset the model to the initial position
         tween(600, (u) => {
-          mv.position.lerp(initialPosition, u);
+          mv.position.lerp(initialTransform.position, u);
           mv.rotation.set(
-            THREE.MathUtils.lerp(initialRotation.x, mv.rotation.x, u),
-            THREE.MathUtils.lerp(initialRotation.y, mv.rotation.y, u),
-            THREE.MathUtils.lerp(initialRotation.z, mv.rotation.z, u)
+            THREE.MathUtils.lerp(initialTransform.rotation.x, mv.rotation.x, u),
+            THREE.MathUtils.lerp(initialTransform.rotation.y, mv.rotation.y, u),
+            THREE.MathUtils.lerp(initialTransform.rotation.z, mv.rotation.z, u)
           );
+          mv.scale.lerp(initialTransform.scale, u);
         }, () => {
-          mv.position.copy(initialPosition);
-          mv.rotation.copy(initialRotation);
+          mv.position.copy(initialTransform.position);
+          mv.rotation.copy(initialTransform.rotation);
+          mv.scale.copy(initialTransform.scale);
         });
         isAnimationPlaying = false; // Reset the state
       } else {
