@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hornet — Bone Control (Three.js)</title>
+<title>Hornet — Bone Control (Three.js, Legacy)</title>
 <style>
   html,body{margin:0;height:100%;background:#181a1b;overflow:hidden}
   #hud{position:fixed;left:12px;bottom:12px;color:#fff;background:rgba(0,0,0,.6);
@@ -14,17 +14,17 @@
        font:14px system-ui,sans-serif;pointer-events:none}
   canvas{display:block}
 </style>
+
+<!-- Legacy (global) builds: NO modules/imports -->
+<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
 <div id="hud">🖱️ Click = Play clip • 🖱️ Double-Click = Head tilt • 🖱️ Right-Click = Sword back</div>
 <div id="status">Loading…</div>
 
-<script type="module">
-/* --- IMPORTANT: use full URLs, no bare imports --- */
-import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
-
+<script>
 const status = document.getElementById('status');
 
 /* --- scene/renderer/camera --- */
@@ -39,10 +39,10 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(cam, renderer.domElement);
+const controls = new THREE.OrbitControls(cam, renderer.domElement);
 controls.enableDamping = true;
 
-/* --- lights + simple ground --- */
+/* --- lights + ground --- */
 scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.0));
 const dir = new THREE.DirectionalLight(0xffffff, 1.0);
 dir.position.set(3,5,2);
@@ -74,7 +74,7 @@ function tween(ms, update, done){
 }
 
 /* --- load GLB (same folder) --- */
-const loader = new GLTFLoader();
+const loader = new THREE.GLTFLoader();
 let root=null, mixer=null, clips=[];
 let headNode=null, swordNode=null;
 
@@ -125,10 +125,10 @@ loader.load(
     headNode  = findNodeByCandidates(root, HEAD_CANDIDATES);
     swordNode = findNodeByCandidates(root, SWORD_CANDIDATES);
 
-    console.log('Head node:', headNode?.name || '(not found)');
-    console.log('Sword/needle node:', swordNode?.name || '(not found)');
+    console.log('Head node:', headNode && headNode.name || '(not found)');
+    console.log('Sword/needle node:', swordNode && swordNode.name || '(not found)');
 
-    // print all node names to help you refine the candidates
+    // log all node names so you can refine candidates
     const names = [];
     root.traverse(n => names.push(n.name));
     console.log('All node names:', names);
@@ -158,7 +158,7 @@ function tick(){
 tick();
 
 /* --- interactions --- */
-// click → play built-in clip briefly
+// Click → play a clip briefly
 renderer.domElement.addEventListener('click', ()=>{
   if (!mixer || !clips.length) return;
   let clip = clips.find(c=>/HORNET/i.test(c.name)) || clips[0];
@@ -167,7 +167,7 @@ renderer.domElement.addEventListener('click', ()=>{
   setTimeout(()=> action.stop(), 2000);
 });
 
-// double-click → head tilt (bone only)
+// Double-click → head tilt (bone only)
 renderer.domElement.addEventListener('dblclick', ()=>{
   if (!headNode) { console.warn('Head bone not found — check console names.'); return; }
   const baseX = headNode.rotation.x;
@@ -177,7 +177,7 @@ renderer.domElement.addEventListener('dblclick', ()=>{
   }, ()=> headNode.rotation.x = baseX);
 });
 
-// right-click → sword/needle back (prevent context menu)
+// Right-click → sword/needle back (prevent context menu)
 renderer.domElement.addEventListener('contextmenu', (e)=>{
   e.preventDefault();
   if (!swordNode) { console.warn('Sword/needle node not found — check console names.'); return; }
