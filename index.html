@@ -2,22 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Hornet 3D Model</title>
+  <title>Hornet 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { margin:0; height:100%; background:#202124; }
     model-viewer { width:100%; height:100%; display:block; }
+    .hint { position:fixed; left:12px; bottom:12px; color:#fff; background:rgba(0,0,0,.5);
+            padding:8px 10px; border-radius:8px; font:13px system-ui; }
   </style>
-
-  <!-- Load model-viewer -->
-  <script type="module"
-    src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
-  </script>
+  <!-- model-viewer -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
 
-<!-- 🩶 Hornet model -->
 <model-viewer id="hornet"
-  src="assets/HORNET.glb"  <!-- 👈 exact case -->
+  src="assets/HORNET.glb"
   camera-controls
   touch-action="manipulation"
   environment-image="neutral"
@@ -25,26 +24,17 @@
   alt="Hornet model">
 </model-viewer>
 
+<div class="hint">Click the model to play the animation.</div>
+
 <script type="module">
 const mv = document.getElementById('hornet');
-
-mv.addEventListener('load', () => {
-  console.log('Available animations:', mv.availableAnimations);
-});
-
-// 🔹 Play animation when clicked
+mv.addEventListener('load', () => console.log('Animations:', mv.availableAnimations));
 mv.addEventListener('click', async () => {
-  const animName = 'HORNET RIGAction';  // from gltf.report
+  const animName = 'HORNET RIGAction';
   await mv.updateComplete;
-
   if (mv.availableAnimations.includes(animName)) {
-    mv.animationName = animName;
-    mv.play();
-
-    // Stop animation after 1.5s (optional)
-    setTimeout(() => {
-      mv.pause();
-    }, 1500);
+    mv.animationName = animName; mv.play();
+    setTimeout(() => mv.pause(), 1500); // optional stop
   } else {
     console.warn('Animation not found:', animName);
   }
