@@ -2,27 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hornet — 3D Demo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    html, body { margin:0; height:100%; background:#202124; }
-    model-viewer { width:100%; height:100%; display:block; --poster-color:transparent; }
-    .hud {
-      position: fixed; left: 12px; bottom: 12px; color: #fff;
-      background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.25);
-      border-radius: 999px; padding: 8px 12px; font: 14px system-ui, sans-serif;
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #181a1b;
+      overflow: hidden;
     }
-    .hud.right { left: auto; right: 12px; }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      display: block;
+      --poster-color: transparent;
+    }
+    .hud {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font: 14px system-ui, sans-serif;
+      pointer-events: none;
+    }
+    .hud.right {
+      left: auto;
+      right: 12px;
+    }
   </style>
 
-  <!-- model-viewer runtime -->
+  <!-- model-viewer script -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
 
-  <!-- Viewer (no comments inside the tag!) -->
+  <!-- 3D Viewer -->
   <model-viewer id="mv"
-    src="assets/HORNET.glb"
+    src="hornet.glb"
     camera-controls
     auto-rotate
     rotation-per-second="20deg"
@@ -33,59 +53,55 @@
     alt="Hornet 3D model">
   </model-viewer>
 
-  <div class="hud">Drag to rotate • Scroll to zoom • Click to animate</div>
+  <div class="hud">🖱️ Drag to rotate • 🖱️ Scroll to zoom • 👆 Click to animate</div>
   <div class="hud right" id="status">Loading… 0%</div>
 
   <script type="module">
     const mv = document.getElementById('mv');
     const statusEl = document.getElementById('status');
-    const ANIM_NAME = 'HORNET RIGAction'; // from gltf.report
+    const ANIM_NAME = 'HORNET RIGAction'; // the animation name from gltf.report
 
-    // Progress HUD
+    // Loading progress display
     mv.addEventListener('progress', (e) => {
       const p = Math.round(100 * (e.detail?.totalProgress ?? 0));
       statusEl.textContent = p < 100 ? `Loading… ${p}%` : 'Ready';
       if (p >= 100) setTimeout(() => statusEl.remove(), 1000);
     });
 
-    // Log available animations on load
+    // Show available animations in console
     mv.addEventListener('load', () => {
+      console.log('✅ Model loaded!');
       console.log('Available animations:', mv.availableAnimations);
     });
 
-    // Play the built-in animation on click (pause after 1.5s)
+    // Click → play animation or fallback head shake
     mv.addEventListener('click', async () => {
       await mv.updateComplete;
       if (Array.isArray(mv.availableAnimations) && mv.availableAnimations.includes(ANIM_NAME)) {
         mv.animationName = ANIM_NAME;
         mv.play();
-        setTimeout(() => mv.pause(), 1500);
+        setTimeout(() => mv.pause(), 2000);
       } else {
-        console.warn('Animation not found, doing a small wiggle instead.');
+        console.warn('⚠️ Animation not found — doing small head wiggle instead.');
         const scene = await mv.getScene();
-        const n = scene.getNodeByName('Head') || scene.getNodeByName('mixamorig:Head') || scene;
-        const base = n.rotation.y; const t0 = performance.now();
+        const head = scene.getNodeByName('Head') || scene.getNodeByName('mixamorig:Head') || scene;
+        const base = head.rotation.y;
+        const start = performance.now();
         (function loop(t){
-          const u = Math.min(1, (t - t0) / 500);
-          n.rotation.y = base + Math.sin(u * Math.PI * 2) * 0.25 * (1 - u * 0.4);
-          if (u < 1) requestAnimationFrame(loop); else n.rotation.y = base;
-        })(t0);
+          const u = Math.min(1, (t - start) / 600);
+          head.rotation.y = base + Math.sin(u * Math.PI * 4) * 0.3 * (1 - u * 0.3);
+          if (u < 1) requestAnimationFrame(loop); else head.rotation.y = base;
+        })(start);
       }
     });
 
-    // Helpful error logger (shows exact URL tried)
+    // Error handler (shows exact URL)
     mv.addEventListener('error', () => {
       const tried = new URL(mv.getAttribute('src'), location.href).href;
-      console.error('Model could not be loaded. Tried:', tried);
+      console.error('❌ Model could not be loaded. Tried:', tried);
       alert('Model could not be loaded.\nOpen Console (F12) to see the exact URL.');
     });
-
-    // OPTIONAL: quick test link to verify Pages serves the file (remove later)
-    // const test = document.createElement('a');
-    // test.textContent = 'Test: open GLB';
-    // test.href = 'assets/HORNET.glb';
-    // test.style.position='fixed'; test.style.top='8px'; test.style.left='8px'; test.style.color='#fff';
-    // document.body.appendChild(test);
   </script>
+
 </body>
 </html>
