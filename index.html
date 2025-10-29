@@ -1,205 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>M-PRO9 • Hornet 3D + AR Demo</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<meta name="theme-color" content="#0b0f1f">
+  <meta charset="UTF-8" />
+  <title>Hornet — 3D Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; height:100%; background:#202124; }
+    model-viewer { width:100%; height:100%; display:block; --poster-color:transparent; }
+    .hud {
+      position: fixed; left: 12px; bottom: 12px; color: #fff;
+      background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.25);
+      border-radius: 999px; padding: 8px 12px; font: 14px system-ui, sans-serif;
+    }
+    .hud.right { left: auto; right: 12px; }
+  </style>
 
-<!-- Preload your GLB (fast paint) -->
-<link rel="preload" as="fetch" href="assets/HORNET.glb" crossorigin>
-
-<!-- If you later add a USDZ, uncomment the next line and set the correct file name -->
-<!-- <link rel="preload" as="fetch" href="assets/HORNET.usdz" crossorigin> -->
-
-<!-- model-viewer -->
-<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-
-<style>
-  :root{
-    --bg:#0b0f1f;--panel:#0f1733;--ink:#eaf2ff;--muted:#a9b7dd;
-    --accent:#4df1ff;--accent2:#a259ff;--border:#1d2a55;
-    --radius:18px;--shadow:0 12px 40px rgba(10,15,40,.45);--maxw:1100px;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:radial-gradient(1500px 700px at -10% -10%,rgba(77,241,255,.12),transparent 60%),var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
-  a{color:var(--accent);text-decoration:none}
-  .top{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,rgba(11,15,31,.95),rgba(11,15,31,.55));border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
-  .top .in{max-width:var(--maxw);margin:auto;display:flex;gap:14px;align-items:center;padding:14px 18px}
-  .brand{font-weight:800;letter-spacing:.3px}
-  .nav{margin-left:auto;display:flex;gap:10px}
-  .nav a{padding:8px 10px;border-radius:10px}
-  .nav a:hover{background:#0d193d}
-  .btn{display:inline-flex;gap:8px;align-items:center;padding:12px 16px;border-radius:12px;border:1px solid #2a3c7a;background:linear-gradient(180deg,#1a3270,#132554);color:#fff;box-shadow:0 8px 22px rgba(25,60,140,.4);cursor:pointer}
-  .ghost{background:transparent;border-color:#2a3c7a}
-  .btn:active{transform:translateY(1px)}
-  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .hero{max-width:var(--maxw);margin:26px auto 10px;padding:0 18px;display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
-  .card{background:linear-gradient(180deg,var(--panel),#0b1430);border:1px solid var(--border);border-radius:24px;padding:22px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-  .card::before{content:"";position:absolute;inset:-40% auto auto -30%;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--accent2),transparent 60%);filter:blur(60px);opacity:.25}
-  h1{margin:0 0 8px;font-size:clamp(28px,4vw,44px);line-height:1.08}
-  .lead{color:var(--muted);margin:0 0 14px}
-  .cta{display:flex;gap:10px;flex-wrap:wrap}
-  .viewer{position:relative;height:480px;border-radius:16px;border:1px solid var(--border);overflow:hidden;background:#0a122b}
-  .viewer .hud{position:absolute;left:10px;bottom:10px;padding:6px 10px;background:rgba(255,255,255,.92);border-radius:999px;font-size:.9rem;color:#0a1330;border:1px solid rgba(190,210,255,.35)}
-  .viewer .hud.right{left:auto;right:10px}
-  model-viewer{width:100%;height:100%;display:block;--poster-color:transparent}
-  .grid{max-width:var(--maxw);margin:18px auto;padding:0 18px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .spec{background:linear-gradient(180deg,var(--panel),#0b1430);border:1px solid var(--border);border-radius:16px;padding:16px}
-  .kpis{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-  .pill{display:inline-flex;gap:8px;align-items:center;background:rgba(162,89,255,.12);border:1px solid var(--border);color:#cfe1ff;padding:8px 12px;border-radius:999px}
-  .footer{max-width:var(--maxw);margin:26px auto 40px;padding:0 18px;color:var(--muted)}
-  .lift{transition:transform .25s,box-shadow .25s,border-color .25s}
-  .lift:hover{transform:translateY(-6px);box-shadow:0 16px 44px rgba(0,0,0,.55);border-color:#2b4a9b}
-  @media(max-width:980px){.hero{grid-template-columns:1fr}.viewer{height:380px}.grid{grid-template-columns:1fr}}
-</style>
+  <!-- model-viewer runtime -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
-  <div class="top">
-    <div class="in">
-      <div class="brand">M-PRO9</div>
-      <nav class="nav" aria-label="Primary">
-        <a href="#viewer">3D Viewer</a>
-        <a href="#details">Details</a>
-        <a href="#ar">AR</a>
-      </nav>
-      <button class="btn ghost" id="btn-ar-nav" type="button">View in AR</button>
-    </div>
-  </div>
 
-  <section class="hero">
-    <div class="card lift">
-      <h1>Interactive Hornet — 3D & AR</h1>
-      <p class="lead">Drag to rotate, scroll to zoom. Click the model to play its built-in animation (<code>HORNET RIGAction</code>).</p>
-      <div class="cta">
-        <button class="btn" id="btn-rotate" type="button" aria-pressed="true">Toggle Auto-Rotate</button>
-        <button class="btn" id="btn-screenshot" type="button">Screenshot</button>
-        <a class="btn ghost" href="assets/HORNET.glb" download>Download GLB</a>
-      </div>
-    </div>
+  <!-- Viewer (no comments inside the tag!) -->
+  <model-viewer id="mv"
+    src="assets/HORNET.glb"
+    camera-controls
+    auto-rotate
+    rotation-per-second="20deg"
+    exposure="1.0"
+    shadow-intensity="0.9"
+    environment-image="neutral"
+    interaction-prompt="auto"
+    alt="Hornet 3D model">
+  </model-viewer>
 
-    <div class="card lift viewer" id="viewer">
-      <model-viewer id="mv"
-        src="assets/HORNET.glb"
-        camera-controls auto-rotate rotation-per-second="20deg"
-        exposure="1.0" shadow-intensity="0.9" environment-image="neutral"
-        ar ar-modes="webxr scene-viewer quick-look"
-        <!-- ios-src only works if you have a USDZ; leave commented out until you add it -->
-        <!-- ios-src="assets/HORNET.usdz#allowsContentScaling=1" -->
-        interaction-prompt="auto"
-        alt="Hornet 3D model">
-      </model-viewer>
-      <div class="hud">Drag to rotate • Scroll to zoom • Click to animate</div>
-      <div class="hud right" id="loadbar">Loading… 0%</div>
-    </div>
-  </section>
+  <div class="hud">Drag to rotate • Scroll to zoom • Click to animate</div>
+  <div class="hud right" id="status">Loading… 0%</div>
 
-  <section id="details" class="grid">
-    <div class="spec lift">
-      <h3>Highlights</h3>
-      <div class="kpis">
-        <span class="pill">Rigged GLB</span>
-        <span class="pill">Built-in Animation</span>
-        <span class="pill">WebXR / Scene Viewer</span>
-      </div>
-    </div>
-    <div class="spec lift">
-      <h3>Controls</h3>
-      <p>• <b>Rotate:</b> drag/swipe  • <b>Zoom:</b> scroll/pinch  • <b>Click:</b> play animation  • <b>AR:</b> “View in AR”</p>
-    </div>
-  </section>
+  <script type="module">
+    const mv = document.getElementById('mv');
+    const statusEl = document.getElementById('status');
+    const ANIM_NAME = 'HORNET RIGAction'; // from gltf.report
 
-  <section id="ar" class="grid">
-    <div class="spec lift">
-      <h3>Open in AR</h3>
-      <p>Android (Scene Viewer) works with the GLB. iOS requires a USDZ — add one later and uncomment <code>ios-src</code>.</p>
-      <button class="btn" id="view-ar" type="button">View in AR</button>
-    </div>
-    <div class="spec lift">
-      <h3>Assets</h3>
-      <ul>
-        <li>GLB: <code>assets/HORNET.glb</code></li>
-        <li>USDZ (optional): <code>assets/HORNET.usdz</code></li>
-      </ul>
-    </div>
-  </section>
+    // Progress HUD
+    mv.addEventListener('progress', (e) => {
+      const p = Math.round(100 * (e.detail?.totalProgress ?? 0));
+      statusEl.textContent = p < 100 ? `Loading… ${p}%` : 'Ready';
+      if (p >= 100) setTimeout(() => statusEl.remove(), 1000);
+    });
 
-  <div class="footer">© M-PRO9. Replace assets with your own models for production.</div>
+    // Log available animations on load
+    mv.addEventListener('load', () => {
+      console.log('Available animations:', mv.availableAnimations);
+    });
 
-<script>
-/* ---------- config: change these if you swap models ---------- */
-const GLB_PATH = 'assets/HORNET.glb';
-const USDZ_PATH = 'assets/HORNET.usdz#allowsContentScaling=1'; // optional
-const ANIM_NAME = 'HORNET RIGAction'; // from gltf.report
-/* ------------------------------------------------------------- */
+    // Play the built-in animation on click (pause after 1.5s)
+    mv.addEventListener('click', async () => {
+      await mv.updateComplete;
+      if (Array.isArray(mv.availableAnimations) && mv.availableAnimations.includes(ANIM_NAME)) {
+        mv.animationName = ANIM_NAME;
+        mv.play();
+        setTimeout(() => mv.pause(), 1500);
+      } else {
+        console.warn('Animation not found, doing a small wiggle instead.');
+        const scene = await mv.getScene();
+        const n = scene.getNodeByName('Head') || scene.getNodeByName('mixamorig:Head') || scene;
+        const base = n.rotation.y; const t0 = performance.now();
+        (function loop(t){
+          const u = Math.min(1, (t - t0) / 500);
+          n.rotation.y = base + Math.sin(u * Math.PI * 2) * 0.25 * (1 - u * 0.4);
+          if (u < 1) requestAnimationFrame(loop); else n.rotation.y = base;
+        })(t0);
+      }
+    });
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-const isAndroid = /Android/i.test(navigator.userAgent);
-const mv = document.getElementById('mv');
-const btnRotate = document.getElementById('btn-rotate');
-const btnScreenshot = document.getElementById('btn-screenshot');
-const loadbar = document.getElementById('loadbar');
+    // Helpful error logger (shows exact URL tried)
+    mv.addEventListener('error', () => {
+      const tried = new URL(mv.getAttribute('src'), location.href).href;
+      console.error('Model could not be loaded. Tried:', tried);
+      alert('Model could not be loaded.\nOpen Console (F12) to see the exact URL.');
+    });
 
-/* Toggle auto-rotate */
-btnRotate.addEventListener('click',()=>{
-  if(mv.hasAttribute('auto-rotate')) mv.removeAttribute('auto-rotate');
-  else mv.setAttribute('auto-rotate','');
-  btnRotate.setAttribute('aria-pressed', mv.hasAttribute('auto-rotate') ? 'true' : 'false');
-});
-
-/* Screenshot (transparent PNG) */
-btnScreenshot.addEventListener('click',async()=>{
-  if(typeof mv.toBlob!=='function'){ alert('Screenshot not supported by this browser.'); return; }
-  const blob=await mv.toBlob({mimeType:'image/png'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='hornet-snapshot.png'; a.click();
-  URL.revokeObjectURL(url);
-});
-
-/* Loading HUD */
-mv.addEventListener('progress',e=>{
-  const p=Math.round(100*(e.detail.totalProgress||0));
-  loadbar.textContent=p<100?`Loading… ${p}%`:'Ready';
-  if(p>=100) setTimeout(()=>loadbar.remove(),800);
-});
-
-/* Play built-in animation on click, if present */
-mv.addEventListener('click', async ()=>{
-  await mv.updateComplete;
-  if (Array.isArray(mv.availableAnimations) && mv.availableAnimations.includes(ANIM_NAME)) {
-    mv.animationName = ANIM_NAME;
-    mv.play();
-    // stop after 1.5s (tweak if your clip is longer)
-    setTimeout(()=>mv.pause(), 1500);
-  } else {
-    // if no clip (or name differs), do a tiny wiggle so clicks still feel responsive
-    const scene = await mv.getScene();
-    const n = scene.getNodeByName('Head') || scene.getNodeByName('mixamorig:Head') || scene;
-    const base = n.rotation.y; const t0=performance.now();
-    (function loop(t){ const u=Math.min(1,(t-t0)/500); n.rotation.y=base+Math.sin(u*6.283)*0.25*(1-u*.4); if(u<1) requestAnimationFrame(loop); else n.rotation.y=base; })(t0);
-  }
-});
-
-/* AR launchers */
-const ABS_GLB = new URL(GLB_PATH, location.href).href; // absolute URL for Scene Viewer
-function openAR(){
-  if(isIOS){
-    // needs USDZ; if you don't have it, show a hint
-    if (USDZ_PATH.startsWith('assets/') === false) { alert('Add a USDZ and set ios-src to enable iOS AR.'); return; }
-    const a=document.createElement('a');
-    a.rel='ar'; a.href=USDZ_PATH; document.body.appendChild(a); a.click(); a.remove();
-  }else if(isAndroid){
-    const intent=`intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(ABS_GLB)}&mode=ar_preferred&title=${encodeURIComponent('Hornet')}`+
-      `#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;end;`;
-    location.href=intent;
-  }else{
-    alert('Open this page on an iPhone (USDZ) or Android (Scene Viewer) to view in AR.');
-  }
-}
-document.getElementById('view-ar').addEventListener('click',openAR);
-document.getElementById('btn-ar-nav').addEventListener('click',openAR);
-</script>
+    // OPTIONAL: quick test link to verify Pages serves the file (remove later)
+    // const test = document.createElement('a');
+    // test.textContent = 'Test: open GLB';
+    // test.href = 'assets/HORNET.glb';
+    // test.style.position='fixed'; test.style.top='8px'; test.style.left='8px'; test.style.color='#fff';
+    // document.body.appendChild(test);
+  </script>
 </body>
 </html>
