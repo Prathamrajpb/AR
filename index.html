@@ -5,37 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hornet — Interactive 3D</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #181a1b;
-      overflow: hidden;
-    }
-    model-viewer {
-      width: 100%;
-      height: 100%;
-      display: block;
-      --poster-color: transparent;
-    }
+    html, body { margin:0; height:100%; background:#181a1b; overflow:hidden; }
+    model-viewer { width:100%; height:100%; display:block; --poster-color:transparent; }
     .hud {
-      position: fixed;
-      left: 12px;
-      bottom: 12px;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font: 14px system-ui, sans-serif;
-      pointer-events: none;
+      position:fixed; left:12px; bottom:12px; color:#fff;
+      background:rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.25);
+      border-radius:999px; padding:8px 12px; font:14px system-ui,sans-serif; pointer-events:none;
     }
-    .hud.right {
-      left: auto;
-      right: 12px;
-    }
+    .hud.right { left:auto; right:12px; }
   </style>
-
-  <!-- model-viewer script -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
@@ -52,9 +30,7 @@
     alt="Hornet 3D model">
   </model-viewer>
 
-  <div class="hud">
-    🖱️ Click = Attack • 🖱️ Double Click = Power stance • 🖱️ Right Click = Spin
-  </div>
+  <div class="hud">🖱️ Click = Attack • 🖱️ Double-Click = Power stance • 🖱️ Right-Click = Spin</div>
   <div class="hud right" id="status">Loading… 0%</div>
 
   <script type="module">
@@ -62,7 +38,7 @@
     const statusEl = document.getElementById('status');
     const ANIM_NAME = 'HORNET RIGAction';
 
-    // progress HUD
+    // -------- progress HUD
     mv.addEventListener('progress', (e) => {
       const p = Math.round(100 * (e.detail?.totalProgress ?? 0));
       statusEl.textContent = p < 100 ? `Loading… ${p}%` : 'Ready';
@@ -74,66 +50,71 @@
       console.log('Available animations:', mv.availableAnimations);
     });
 
-    // tiny helper for tweens
-    function tween(duration, update, done){
+    // -------- tiny tween helper
+    function tween(ms, update, done){
       const t0 = performance.now();
       function frame(t){
-        const u = Math.min(1, (t - t0) / duration);
+        const u = Math.min(1, (t - t0)/ms);
         update(u);
-        if (u < 1) requestAnimationFrame(frame);
-        else if (done) done();
+        if (u < 1) requestAnimationFrame(frame); else done && done();
       }
       requestAnimationFrame(frame);
     }
 
-    // LEFT CLICK → normal animation
+    // -------- helpers to read/set orientation (x y z in degrees)
+    function parseOrientation(str){
+      // "0deg 20deg 0deg" -> [0,20,0]
+      const m = (str || '0deg 0deg 0deg').match(/-?\d+(\.\d+)?/g) || ['0','0','0'];
+      return m.slice(0,3).map(Number);
+    }
+    function setOrientation([x,y,z]){
+      mv.orientation = `${x}deg ${y}deg ${z}deg`;
+    }
+
+    // -------- left click: play built-in animation (pause after 2s)
     mv.addEventListener('click', async () => {
       await mv.updateComplete;
-      if (mv.availableAnimations?.includes(ANIM_NAME)) {
+      if (Array.isArray(mv.availableAnimations) && mv.availableAnimations.includes(ANIM_NAME)) {
         mv.animationName = ANIM_NAME;
         mv.play();
         setTimeout(() => mv.pause(), 2000);
       } else {
-        const scene = await mv.getScene();
-        const head = scene.getNodeByName('Head') || scene;
-        const base = head.rotation.y;
+        // fallback: a small whole-model wiggle
+        const base = parseOrientation(mv.orientation);
         tween(600, (u) => {
-          head.rotation.y = base + Math.sin(u * Math.PI * 4) * 0.3 * (1 - u * 0.3);
-        }, () => head.rotation.y = base);
+          const amp = 18; // degrees
+          const y = base[1] + Math.sin(u * Math.PI * 4) * amp * (1 - u * 0.3);
+          setOrientation([base[0], y, base[2]]);
+        }, () => setOrientation(base));
       }
     });
 
-    // DOUBLE CLICK → “Power stance”
-    mv.addEventListener('dblclick', async () => {
-      const scene = await mv.getScene();
-      const head = scene.getNodeByName('Head') || scene;
-      const baseX = head.rotation.x;
-      const baseY = head.rotation.y;
+    // -------- double click: "power stance" (tilt & slight yaw)
+    mv.addEventListener('dblclick', () => {
+      const base = parseOrientation(mv.orientation);
       tween(700, (u) => {
-        head.rotation.x = baseX - Math.sin(u * Math.PI) * 0.35; // tilt forward
-        head.rotation.y = baseY + Math.sin(u * Math.PI * 2) * 0.15;
-      }, () => {
-        head.rotation.x = baseX;
-        head.rotation.y = baseY;
-      });
+        const ease = 1 - Math.pow(1-u, 3);
+        const x = base[0] - Math.sin(ease * Math.PI) * 20;  // tilt forward
+        const y = base[1] + Math.sin(ease * Math.PI * 2) * 10;
+        setOrientation([x, y, base[2]]);
+      }, () => setOrientation(base));
     });
 
-    // RIGHT CLICK → “Taunt spin”
-    mv.addEventListener('contextmenu', async (e) => {
-      e.preventDefault(); // stop default context menu
-      const scene = await mv.getScene();
-      const root = scene;
-      const baseY = root.rotation.y;
+    // -------- right click: smooth 360° spin (prevent context menu)
+    mv.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const base = parseOrientation(mv.orientation);
       tween(1000, (u) => {
-        root.rotation.y = baseY + u * Math.PI * 2; // full 360° spin
-      }, () => root.rotation.y = baseY);
+        const y = base[1] + u * 360; // degrees
+        setOrientation([base[0], y, base[2]]);
+      }, () => setOrientation(base));
     });
 
-    // error display
+    // -------- error logger
     mv.addEventListener('error', () => {
       const tried = new URL(mv.getAttribute('src'), location.href).href;
       console.error('❌ Model could not be loaded. Tried:', tried);
-      alert('Model could not be loaded.\nOpen Console (F12) to see details.');
+      alert('Model could not be loaded.\nOpen Console (F12) for details.');
     });
   </script>
 
