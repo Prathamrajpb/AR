@@ -1,47 +1,101 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Seat Ibiza AR</title>
-<style>
-  body { font-family: system-ui, sans-serif; text-align:center; padding:3rem; background:#f7f7f7; }
-  button {
-    background:#222; color:white; font-size:1.1rem;
-    border:none; border-radius:10px; padding:1rem 1.5rem;
-    cursor:pointer;
-  }
-  button:hover { background:#444; }
-</style>
+  <meta charset="UTF-8" />
+  <title>T-Rex — Head Shake + Roar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; height:100%; background:#202124; }
+    model-viewer { width:100%; height:100%; display:block; }
+    .hint {
+      position: fixed; left: 12px; bottom: 12px; color: #fff; 
+      font: 14px/1.4 system-ui, sans-serif; opacity: .85;
+      background: rgba(0,0,0,.25); padding: 8px 10px; border-radius: 8px;
+      backdrop-filter: blur(4px);
+    }
+  </style>
+  <!-- Load model-viewer -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
 
-<h1>Seat Ibiza MK3 Cupra (2006)</h1>
-<p>Tap below on your phone to view in AR 👇</p>
+<model-viewer id="trex"
+  src="assets/trex.glb"                <!-- ← your model path -->
+  camera-controls touch-action="manipulation"
+  environment-image="neutral" exposure="1"
+  shadow-intensity="0.6"
+  alt="Interactive T-Rex">
+</model-viewer>
 
-<button id="view-ar">View in AR</button>
+<div class="hint">Click the model to make it <b>shake its head</b> (and <b>roar</b> if it has a jaw bone).</div>
 
-<script>
-const USDZ_URL = 'https://prathamrajpb.github.io/AR/Seat_Ibiza_MK3_Cupra_2006.usdz';
-const GLB_URL  = 'https://prathamrajpb.github.io/AR/seat_ibiza_mk3_cupra_2006.glb';
+<script type="module">
+const mv = document.getElementById('trex');
 
-const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent)) ||
-              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isAndroid = /Android/i.test(navigator.userAgent);
+// ---- tiny tween helper ----
+function tween(durationMs, update, done){
+  const t0 = performance.now();
+  function frame(t){
+    const u = Math.min(1, (t - t0) / durationMs);
+    update(u);
+    if (u < 1) requestAnimationFrame(frame);
+    else if (done) done();
+  }
+  requestAnimationFrame(frame);
+}
 
-document.getElementById('view-ar').addEventListener('click', () => {
-  if (isIOS) {
-    const a = document.createElement('a');
-    a.rel = 'ar';
-    a.href = USDZ_URL;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } else if (isAndroid) {
-    const intent = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(GLB_URL)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(location.href)};end;`;
-    location.href = intent;
-  } else {
-    alert('Open this page on an iPhone or Android device to view in AR.');
+// Try a few common head/jaw node names.
+// TIP: you will replace these with your exact names after Step 5.
+const HEAD_CANDIDATES = [
+  'Head','head','HEAD','Bip01_Head','mixamorig:Head','DEF-Head','RootNode/Head'
+];
+const JAW_CANDIDATES  = [
+  'jaw','Jaw','JAW','lower_jaw','LowerJaw','mixamorig:Jaw','DEF-Jaw'
+];
+
+let headNode = null;
+let jawNode  = null;
+
+async function getNodeByCandidates(names){
+  const scene = await mv.getScene();       // model-viewer Scene Graph API
+  for (const n of names){
+    const node = scene.getNodeByName(n);   // returns a node or null
+    if (node) return node;
+  }
+  return null;
+}
+
+mv.addEventListener('load', async () => {
+  // locate nodes once when model loads
+  headNode = await getNodeByCandidates(HEAD_CANDIDATES);
+  jawNode  = await getNodeByCandidates(JAW_CANDIDATES);
+
+  // quick console helper to discover your exact bone names:
+  console.log('TIP: run this in DevTools to list all node names:');
+  console.log(`mv.getScene().then(s => { const names=[]; (function walk(n){ names.push(n.name); n.children.forEach(walk); })(s); console.log(names); })`);
+});
+
+// click anywhere on the canvas to play animation
+mv.addEventListener('click', () => {
+  if (!headNode) return; // If we didn’t find a head, do nothing.
+
+  // HEAD SHAKE: ~2 oscillations with ease-out
+  const baseY = headNode.rotation.y;
+  const shakes = 2;          // number of side-to-side swings
+  const amp = 0.45;          // radians (~25.8°)
+  tween(600, (u) => {
+    const e = 1 - Math.pow(1-u, 3); // ease-out
+    headNode.rotation.y = baseY + Math.sin(e * shakes * Math.PI * 2) * amp * (1 - u*0.4);
+  }, () => { headNode.rotation.y = baseY; });
+
+  // Optional quick jaw open/close "roar"
+  if (jawNode){
+    const baseX = jawNode.rotation.x;
+    tween(250, (u) => { jawNode.rotation.x = baseX + u * 0.35; }, () => {
+      tween(250, (u) => { jawNode.rotation.x = baseX + (1-u) * 0.35; }, () => {
+        jawNode.rotation.x = baseX;
+      });
+    });
   }
 });
 </script>
